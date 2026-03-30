@@ -41,6 +41,8 @@ export const userService = {
 export const stockReceiptService = {
   list: (params) => api.get("/stock-receipts", { params }),
   create: (payload) => api.post("/stock-receipts", payload),
+  update: (id, payload) => api.put(`/stock-receipts/${id}`, payload),
+  remove: (id) => api.delete(`/stock-receipts/${id}`),
   detail: (id) => api.get(`/stock-receipts/${id}`),
 };
 
