@@ -13,6 +13,7 @@ import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EmptyState from "../components/EmptyState";
+import dayjs from "dayjs";
 
 const itemTemplate = { product_id: "", quantity: "", unit_price: "" };
 
@@ -384,7 +385,8 @@ export default function StockIssuesPage() {
                 >
                   <td>{item.code}</td>
                   <td>{item.warehouse?.name || "-"}</td>
-                  <td>{formatDateTimeVN(item.issue_date)}</td>
+                  {/* <td>{formatDateTimeVN(item.issue_date)}</td> */}
+                   <td>{dayjs(item.issue_date).format("DD/MM/YYYY")}</td>
                   <td>{item.items_count}</td>
                   <td>{formatNumber(item.total_amount, 0)}</td>
                   <td>{item.creator?.name || "-"}</td>

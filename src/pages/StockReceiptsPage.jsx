@@ -14,6 +14,7 @@ import Pagination from "../components/Pagination";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EmptyState from "../components/EmptyState";
 import { exportStockReceiptToWord } from "../utils/exportStockReceiptToWord";
+import dayjs from "dayjs";
 
 const itemTemplate = { product_id: "", quantity: "", unit_cost: "" };
 
@@ -370,7 +371,8 @@ export default function StockReceiptsPage() {
                 >
                   <td>{item.code}</td>
                   <td>{item.warehouse?.name || "-"}</td>
-                  <td>{formatDateTimeVN(item.receipt_date)}</td>
+                  <td>{dayjs(item.receipt_date).format("DD/MM/YYYY")}</td>
+                  {/* <td>{formatDateTimeVN(item.receipt_date)}</td> */}
                   <td>{item.items_count}</td>
                   <td>{formatNumber(item.total_amount, 0)}</td>
                   <td>{item.creator?.name || "-"}</td>
