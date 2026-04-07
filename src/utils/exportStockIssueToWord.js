@@ -74,7 +74,9 @@ function infoLine(label, value = "") {
         size: 24,
       }),
       new TextRun({
-        text: value || "..............................................................",
+        text:
+          value ||
+          "..............................................................",
         size: 24,
       }),
     ],
@@ -119,8 +121,11 @@ function buildHeaderTable() {
             borders: NO_BORDER,
             width: { size: 50, type: WidthType.PERCENTAGE },
             children: [
-              lineParagraph("Đơn vị: ....................", { bold: true, size: 24 }),
-              lineParagraph("Bộ phận: ..................", {
+              lineParagraph("Đơn vị: Công ty Thương mại điện tử", {
+                bold: true,
+                size: 24,
+              }),
+              lineParagraph("Bộ phận: Kho hàng", {
                 bold: true,
                 size: 24,
                 spacing: { after: 0 },
@@ -131,11 +136,11 @@ function buildHeaderTable() {
             borders: NO_BORDER,
             width: { size: 50, type: WidthType.PERCENTAGE },
             children: [
-              lineParagraph("Mẫu số 02 - VT", {
-                bold: true,
-                size: 24,
-                alignment: AlignmentType.CENTER,
-              }),
+              // lineParagraph("Mẫu số 02 - VT", {
+              //   bold: true,
+              //   size: 24,
+              //   alignment: AlignmentType.CENTER,
+              // }),
               lineParagraph("(Ban hành theo Thông tư số 200/2014/TT-BTC", {
                 italics: true,
                 size: 22,
@@ -226,11 +231,14 @@ function buildItemsTable(detail) {
           alignment: AlignmentType.CENTER,
           width: 700,
         }),
-        cellText("Tên, nhãn hiệu, quy cách, phẩm chất vật tư, dụng cụ, sản phẩm, hàng hoá", {
-          bold: true,
-          alignment: AlignmentType.CENTER,
-          width: 4300,
-        }),
+        cellText(
+          "Tên, nhãn hiệu, quy cách, phẩm chất vật tư, dụng cụ, sản phẩm, hàng hoá",
+          {
+            bold: true,
+            alignment: AlignmentType.CENTER,
+            width: 4300,
+          },
+        ),
         cellText("Mã số", {
           bold: true,
           alignment: AlignmentType.CENTER,
@@ -284,14 +292,18 @@ function buildItemsTable(detail) {
         children: [
           cellText(index + 1, { alignment: AlignmentType.CENTER }),
           cellText(item?.product?.name || ""),
-          cellText(item?.product?.code || "", { alignment: AlignmentType.CENTER }),
-          cellText(item?.product?.unit || "", { alignment: AlignmentType.CENTER }),
+          cellText(item?.product?.code || "", {
+            alignment: AlignmentType.CENTER,
+          }),
+          cellText(item?.product?.unit || "", {
+            alignment: AlignmentType.CENTER,
+          }),
           cellText(qty(quantity), { alignment: AlignmentType.CENTER }),
           cellText(qty(quantity), { alignment: AlignmentType.CENTER }),
           cellText(money(unitPrice), { alignment: AlignmentType.RIGHT }),
           cellText(money(lineTotal), { alignment: AlignmentType.RIGHT }),
         ],
-      })
+      }),
     );
   });
 
@@ -308,7 +320,7 @@ function buildItemsTable(detail) {
           alignment: AlignmentType.RIGHT,
         }),
       ],
-    })
+    }),
   );
 
   return new Table({
@@ -357,7 +369,7 @@ function buildSignatureTable(detail) {
                 border: undefined,
                 children: [
                   new TextRun({
-                    text: detail?.creator?.name || "",
+                    text: "",
                     bold: true,
                     size: 22,
                   }),

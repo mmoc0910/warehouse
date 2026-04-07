@@ -84,7 +84,10 @@ function buildInfoLine(label, value = "") {
   return new Paragraph({
     children: [
       new TextRun({ text: `${label} `, bold: false, size: 24 }),
-      new TextRun({ text: value || "................................................", size: 24 }),
+      new TextRun({
+        text: value || "................................................",
+        size: 24,
+      }),
     ],
     spacing: { after: 120 },
   });
@@ -99,32 +102,60 @@ function buildMainTable(detail) {
       new TableRow({
         tableHeader: true,
         children: [
-          cell("STT", { bold: true, alignment: AlignmentType.CENTER, width: 700 }),
-          cell("Tên, nhãn hiệu, quy cách phẩm chất vật tư, dụng cụ, sản phẩm, hàng hoá", {
+          cell("STT", {
             bold: true,
             alignment: AlignmentType.CENTER,
-            width: 4200,
+            width: 700,
           }),
-          cell("Mã số", { bold: true, alignment: AlignmentType.CENTER, width: 1100 }),
-          cell("Đơn vị tính", { bold: true, alignment: AlignmentType.CENTER, width: 1000 }),
-          cell("Số lượng", { bold: true, alignment: AlignmentType.CENTER, width: 1500, columnSpan: 2 }),
-          cell("Đơn giá", { bold: true, alignment: AlignmentType.CENTER, width: 1400 }),
-          cell("Thành tiền", { bold: true, alignment: AlignmentType.CENTER, width: 1700 }),
+          cell(
+            "Tên, nhãn hiệu, quy cách phẩm chất vật tư, dụng cụ, sản phẩm, hàng hoá",
+            {
+              bold: true,
+              alignment: AlignmentType.CENTER,
+              width: 4200,
+            },
+          ),
+          cell("Mã số", {
+            bold: true,
+            alignment: AlignmentType.CENTER,
+            width: 1100,
+          }),
+          cell("Đơn vị tính", {
+            bold: true,
+            alignment: AlignmentType.CENTER,
+            width: 1000,
+          }),
+          cell("Số lượng", {
+            bold: true,
+            alignment: AlignmentType.CENTER,
+            width: 1500,
+            columnSpan: 2,
+          }),
+          cell("Đơn giá", {
+            bold: true,
+            alignment: AlignmentType.CENTER,
+            width: 1400,
+          }),
+          cell("Thành tiền", {
+            bold: true,
+            alignment: AlignmentType.CENTER,
+            width: 1700,
+          }),
         ],
       }),
-    //   new TableRow({
-    //     tableHeader: true,
-    //     children: [
-    //       cell("A", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("B", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("C", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("D", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("1", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("2", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("3", { bold: true, alignment: AlignmentType.CENTER }),
-    //       cell("4", { bold: true, alignment: AlignmentType.CENTER }),
-    //     ],
-    //   }),
+      //   new TableRow({
+      //     tableHeader: true,
+      //     children: [
+      //       cell("A", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("B", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("C", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("D", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("1", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("2", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("3", { bold: true, alignment: AlignmentType.CENTER }),
+      //       cell("4", { bold: true, alignment: AlignmentType.CENTER }),
+      //     ],
+      //   }),
       ...items.map((item, index) => {
         const qty = Number(item.quantity || 0);
         const unitCost = Number(item.unit_cost || 0);
@@ -203,18 +234,21 @@ export async function exportStockReceiptToWord(detail) {
                     borders: noBorder,
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
-                      p("Đơn vị: ................................", { bold: true, size: 24 }),
-                      p("Bộ phận: ..............................", { bold: true, size: 24 }),
+                      p("Đơn vị: Công ty Thương mại điện tử", {
+                        bold: true,
+                        size: 24,
+                      }),
+                      p("Bộ phận: Kho hàng", { bold: true, size: 24 }),
                     ],
                   }),
                   new TableCell({
                     borders: noBorder,
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "Mẫu số 02 - VT", bold: true, size: 24 })],
-                      }),
+                      // new Paragraph({
+                      //   alignment: AlignmentType.CENTER,
+                      //   children: [new TextRun({ text: "Mẫu số 02 - VT", bold: true, size: 24 })],
+                      // }),
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
                         children: [
@@ -290,10 +324,20 @@ export async function exportStockReceiptToWord(detail) {
                     width: { size: 40, type: WidthType.PERCENTAGE },
                     children: [
                       new Paragraph({
-                        children: [new TextRun({ text: "Nợ: ............................", size: 24 })],
+                        children: [
+                          new TextRun({
+                            text: "Nợ: ............................",
+                            size: 24,
+                          }),
+                        ],
                       }),
                       new Paragraph({
-                        children: [new TextRun({ text: "Có: .............................", size: 24 })],
+                        children: [
+                          new TextRun({
+                            text: "Có: .............................",
+                            size: 24,
+                          }),
+                        ],
                       }),
                     ],
                   }),
@@ -304,8 +348,9 @@ export async function exportStockReceiptToWord(detail) {
 
           new Paragraph({ text: "" }),
 
-          buildInfoLine("- Họ và tên người giao hàng:", detail?.creator?.name || ""),
-          buildInfoLine("- Theo:", detail?.note || ""),
+          buildInfoLine("- Họ và tên người giao hàng:", ""),
+          // buildInfoLine("- Họ và tên người giao hàng:", detail?.creator?.name || ""),
+          buildInfoLine("- Nội dung:", detail?.note || ""),
           buildInfoLine("- Nhập tại kho:", detail?.warehouse?.name || ""),
           buildInfoLine("- Địa điểm:", detail?.warehouse?.address || ""),
 
@@ -326,11 +371,23 @@ export async function exportStockReceiptToWord(detail) {
                     children: [
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "Người lập phiếu", bold: true, size: 24 })],
+                        children: [
+                          new TextRun({
+                            text: "Người lập phiếu",
+                            bold: true,
+                            size: 24,
+                          }),
+                        ],
                       }),
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "(Ký, họ tên)", italics: true, size: 22 })],
+                        children: [
+                          new TextRun({
+                            text: "(Ký, họ tên)",
+                            italics: true,
+                            size: 22,
+                          }),
+                        ],
                       }),
                     ],
                   }),
@@ -339,11 +396,23 @@ export async function exportStockReceiptToWord(detail) {
                     children: [
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "Người giao hàng", bold: true, size: 24 })],
+                        children: [
+                          new TextRun({
+                            text: "Người giao hàng",
+                            bold: true,
+                            size: 24,
+                          }),
+                        ],
                       }),
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "(Ký, họ tên)", italics: true, size: 22 })],
+                        children: [
+                          new TextRun({
+                            text: "(Ký, họ tên)",
+                            italics: true,
+                            size: 22,
+                          }),
+                        ],
                       }),
                     ],
                   }),
@@ -352,11 +421,23 @@ export async function exportStockReceiptToWord(detail) {
                     children: [
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "Thủ kho", bold: true, size: 24 })],
+                        children: [
+                          new TextRun({
+                            text: "Thủ kho",
+                            bold: true,
+                            size: 24,
+                          }),
+                        ],
                       }),
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: "(Ký, họ tên)", italics: true, size: 22 })],
+                        children: [
+                          new TextRun({
+                            text: "(Ký, họ tên)",
+                            italics: true,
+                            size: 22,
+                          }),
+                        ],
                       }),
                     ],
                   }),
