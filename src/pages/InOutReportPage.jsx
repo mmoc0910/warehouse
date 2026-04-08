@@ -202,11 +202,7 @@
 // }
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Search,
-  ChevronDown,
-  X,
-} from "lucide-react";
+import { Search, ChevronDown, X } from "lucide-react";
 import {
   reportService,
   warehouseService,
@@ -216,6 +212,8 @@ import { formatNumber, getErrorMessage } from "../utils/helpers";
 import { exportInOutReportToExcel } from "../utils/exportInOutReportToExcel";
 import SectionCard from "../components/SectionCard";
 import EmptyState from "../components/EmptyState";
+import Modal from "../components/Modal";
+import dayjs from "dayjs";
 
 const searchableCss = `
 .report-search-select {
@@ -355,6 +353,21 @@ function getReceiptTotalQuantity(receipt) {
   return 0;
 }
 
+function formatDateTimeVN(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const day = `${date.getDate()}`.padStart(2, "0");
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = `${date.getHours()}`.padStart(2, "0");
+  const minutes = `${date.getMinutes()}`.padStart(2, "0");
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
 function SearchableSupplierSelect({
   options,
   value,
@@ -426,7 +439,9 @@ function SearchableSupplierSelect({
   return (
     <div className="report-search-select" ref={wrapperRef}>
       <div className="report-search-select-input-wrap">
-      
+        <span className="report-search-select-leading">
+          <Search size={16} />
+        </span>
 
         <input
           className="report-search-select-input"
@@ -504,6 +519,9 @@ export default function InOutReportPage() {
   const [receiptError, setReceiptError] = useState("");
   const [hasSearchedReceipts, setHasSearchedReceipts] = useState(false);
 
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   const loadData = async () => {
     try {
       setError("");
@@ -570,6 +588,25 @@ export default function InOutReportPage() {
     }
   };
 
+  const openReceiptDetail = async (id) => {
+    if (!id) return;
+
+    try {
+      setDetailLoading(true);
+      const res = await stockReceiptService.detail(id);
+      setDetail(res.data.data);
+    } catch (err) {
+      setReceiptError(getErrorMessage(err));
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeReceiptDetail = () => {
+    setDetail(null);
+    setDetailLoading(false);
+  };
+
   useEffect(() => {
     warehouseService
       .list({ per_page: 100 })
@@ -580,11 +617,13 @@ export default function InOutReportPage() {
       .list({ page: 1, per_page: 500 })
       .then((res) => {
         const list = getListFromResponse(res);
-        const uniqueNames = [...new Set(
-          list
-            .map((item) => String(item?.delivery_full_name || "").trim())
-            .filter(Boolean)
-        )].sort((a, b) => a.localeCompare(b, "vi"));
+        const uniqueNames = [
+          ...new Set(
+            list
+              .map((item) => String(item?.delivery_full_name || "").trim())
+              .filter(Boolean)
+          ),
+        ].sort((a, b) => a.localeCompare(b, "vi"));
 
         setSupplierOptions(uniqueNames);
       })
@@ -887,7 +926,7 @@ export default function InOutReportPage() {
                       <th>Kho</th>
                       <th>Người nhận</th>
                       <th>SL mặt hàng</th>
-                      <th>Tổng số lượng</th>
+                      {/* <th>Đơn giá</th> */}
                       <th>Tổng tiền</th>
                       <th>Ghi chú</th>
                     </tr>
@@ -895,14 +934,20 @@ export default function InOutReportPage() {
 
                   <tbody>
                     {receiptList.map((receipt) => (
-                      <tr key={receipt.id}>
+                      <tr
+                        key={receipt.id}
+                        className="clickable-row"
+                        onClick={() => openReceiptDetail(receipt.id)}
+                        style={{ cursor: "pointer" }}
+                        title="Nhấn để xem chi tiết phiếu nhập"
+                      >
                         <td>{receipt.code || "-"}</td>
-                        <td>{receipt.receipt_date || "-"}</td>
+                        <td>{dayjs(receipt.receipt_date).format("DD/MM/YYYY")}</td>
                         <td>{receipt.delivery_full_name || "-"}</td>
                         <td>{receipt.warehouse?.name || "-"}</td>
                         <td>{receipt.receiver_full_name || "-"}</td>
                         <td>{formatNumber(getReceiptItemsCount(receipt), 0)}</td>
-                        <td>{formatNumber(getReceiptTotalQuantity(receipt), 0)}</td>
+                        {/* <td>{formatNumber(getReceiptTotalQuantity(receipt), 0)}</td> */}
                         <td>{formatNumber(receipt.total_amount || 0, 0)}</td>
                         <td>{receipt.note || "-"}</td>
                       </tr>
@@ -914,6 +959,92 @@ export default function InOutReportPage() {
           </div>
         )}
       </SectionCard>
+
+      <Modal
+        open={Boolean(detail) || detailLoading}
+        title="Chi tiết phiếu nhập"
+        onClose={closeReceiptDetail}
+        width={1100}
+      >
+        {detailLoading && !detail ? (
+          <div className="muted">Đang tải chi tiết phiếu nhập...</div>
+        ) : detail ? (
+          <div className="grid">
+            <div className="summary-grid">
+              <div className="summary-card">
+                <div className="muted">Mã phiếu</div>
+                <strong>{detail.code || "-"}</strong>
+              </div>
+
+              <div className="summary-card">
+                <div className="muted">Kho</div>
+                <strong>{detail.warehouse?.name || "-"}</strong>
+              </div>
+
+              <div className="summary-card">
+                <div className="muted">Ngày nhập</div>
+                <strong>{dayjs(detail.receipt_date).format("DD/MM/YYYY")}</strong>
+              </div>
+
+              <div className="summary-card">
+                <div className="muted">Tổng tiền</div>
+                <strong>{formatNumber(detail.total_amount || 0, 0)}</strong>
+              </div>
+            </div>
+
+            <div className="grid cols-2">
+              <div className="summary-card">
+                <div className="muted">Nhà cung cấp (người giao)</div>
+                <strong>{detail.delivery_full_name || "-"}</strong>
+              </div>
+
+              <div className="summary-card">
+                <div className="muted">Người nhận</div>
+                <strong>{detail.receiver_full_name || "-"}</strong>
+              </div>
+            </div>
+
+            <div className="summary-card">
+              <div className="muted">Ghi chú</div>
+              <strong>{detail.note || "-"}</strong>
+            </div>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>Số lượng</th>
+                    <th>Đơn giá nhập</th>
+                    <th>Thành tiền</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {detail.items?.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        {item.product?.code} - {item.product?.name}
+                      </td>
+                      <td>{formatNumber(item.quantity || 0, 0)}</td>
+                      <td>{formatNumber(item.unit_cost || 0, 0)}</td>
+                      <td>{formatNumber(item.line_total || 0, 0)}</td>
+                    </tr>
+                  ))}
+
+                  {!detail.items?.length ? (
+                    <tr>
+                      <td colSpan={4}>
+                        <EmptyState message="Không có sản phẩm trong phiếu nhập này." />
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </>
   );
 }
