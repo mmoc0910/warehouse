@@ -227,7 +227,7 @@ function buildItemsTable(detail) {
           width: 700,
         }),
         cellText(
-          "Tên, nhãn hiệu, quy cách, phẩm chất vật tư, dụng cụ, sản phẩm, hàng hoá",
+          "Sản phẩm",
           {
             bold: true,
             alignment: AlignmentType.CENTER,
@@ -247,7 +247,7 @@ function buildItemsTable(detail) {
         cellText("Số lượng", {
           bold: true,
           alignment: AlignmentType.CENTER,
-          columnSpan: 2,
+          // columnSpan: 2,
           width: 1600,
         }),
         cellText("Đơn giá", {
@@ -281,7 +281,7 @@ function buildItemsTable(detail) {
             alignment: AlignmentType.CENTER,
           }),
           cellText(qty(quantity), { alignment: AlignmentType.CENTER }),
-          cellText(qty(quantity), { alignment: AlignmentType.CENTER }),
+          // cellText(qty(quantity), { alignment: AlignmentType.CENTER }),
           cellText(money(unitPrice), { alignment: AlignmentType.RIGHT }),
           cellText(money(lineTotal), { alignment: AlignmentType.RIGHT }),
         ],
@@ -295,7 +295,7 @@ function buildItemsTable(detail) {
         cellText("Tổng cộng", {
           bold: true,
           alignment: AlignmentType.CENTER,
-          columnSpan: 7,
+          columnSpan: 6,
         }),
         cellText(money(detail?.total_amount || 0), {
           bold: true,

@@ -1,7 +1,6 @@
 
-
-import { useEffect, useMemo, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pencil, Trash2, Search, ChevronDown, X } from "lucide-react";
 import dayjs from "dayjs";
 import usePaginatedResource from "../hooks/usePaginatedResource";
 import {
@@ -19,12 +18,321 @@ import { exportStockReceiptToWord } from "../utils/exportStockReceiptToWord";
 
 const itemTemplate = { product_id: "", quantity: "", unit_cost: "" };
 
+const modalUiCss = `
+.stock-ui {
+  --stock-primary: #2563eb;
+  --stock-primary-soft: #eff6ff;
+  --stock-border: #dbe3f0;
+  --stock-border-strong: #c7d2e3;
+  --stock-text: #0f172a;
+  --stock-muted: #64748b;
+  --stock-soft: #f8fafc;
+  --stock-soft-2: #f1f5f9;
+  --stock-danger: #dc2626;
+  --stock-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.stock-ui .stock-form {
+  gap: 16px;
+}
+
+.stock-ui .stock-card {
+  border: 1px solid var(--stock-border);
+  border-radius: 18px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: var(--stock-shadow);
+}
+
+.stock-ui .stock-card-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--stock-text);
+}
+
+.stock-ui .stock-section-note {
+  margin-top: -6px;
+  margin-bottom: 12px;
+  color: var(--stock-muted);
+  font-size: 13px;
+}
+
+.stock-ui .stock-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stock-ui .stock-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stock-ui .stock-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stock-ui .stock-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stock-text);
+}
+
+.stock-ui .stock-control,
+.stock-ui .stock-search-input,
+.stock-ui .stock-textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--stock-border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--stock-text);
+  padding: 10px 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.stock-ui .stock-textarea {
+  min-height: 92px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.stock-ui .stock-control:focus,
+.stock-ui .stock-search-input:focus,
+.stock-ui .stock-textarea:focus {
+  border-color: var(--stock-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.stock-ui .stock-control[readonly],
+.stock-ui .stock-search-input.readonly {
+  background: var(--stock-soft);
+  color: var(--stock-muted);
+}
+
+.stock-ui .stock-summary-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+  border: 1px solid #bfdbfe;
+}
+
+.stock-ui .stock-summary-label {
+  font-size: 13px;
+  color: var(--stock-muted);
+}
+
+.stock-ui .stock-summary-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--stock-primary);
+}
+
+.stock-ui .stock-items-wrap {
+  overflow: visible;
+}
+
+.stock-ui .stock-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+}
+
+.stock-ui .stock-table thead th {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stock-text);
+  background: var(--stock-soft-2);
+  border-top: 1px solid var(--stock-border);
+  border-bottom: 1px solid var(--stock-border);
+  padding: 12px 10px;
+}
+
+.stock-ui .stock-table thead th:first-child {
+  border-left: 1px solid var(--stock-border);
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.stock-ui .stock-table thead th:last-child {
+  border-right: 1px solid var(--stock-border);
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.stock-ui .stock-table tbody td {
+  padding: 0 6px;
+  vertical-align: top;
+}
+
+.stock-ui .stock-row-shell {
+  background: #fff;
+  border: 1px solid var(--stock-border);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+  padding: 10px;
+}
+
+.stock-ui .stock-line-readonly {
+  background: var(--stock-soft);
+  font-weight: 700;
+}
+
+.stock-ui .stock-inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.stock-ui .product-search {
+  position: relative;
+}
+
+.stock-ui .product-search-box {
+  position: relative;
+}
+
+.stock-ui .stock-search-input {
+  padding-left: 42px;
+  padding-right: 42px;
+}
+
+.stock-ui .product-search-leading,
+.stock-ui .product-search-trailing {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--stock-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stock-ui .product-search-leading {
+  left: 14px;
+}
+
+.stock-ui .product-search-trailing {
+  right: 12px;
+}
+
+.stock-ui .product-search-clear {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  color: var(--stock-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stock-ui .product-search-clear:hover {
+  color: var(--stock-danger);
+}
+
+.stock-ui .product-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid var(--stock-border-strong);
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.stock-ui .product-search-option {
+  width: 100%;
+  border: none;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.18s ease;
+}
+
+.stock-ui .product-search-option:hover,
+.stock-ui .product-search-option.active {
+  background: var(--stock-primary-soft);
+}
+
+.stock-ui .product-option-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--stock-text);
+}
+
+.stock-ui .product-option-meta {
+  font-size: 12px;
+  color: var(--stock-muted);
+}
+
+.stock-ui .product-search-empty {
+  padding: 14px;
+  color: var(--stock-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.stock-ui .stock-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.stock-ui .stock-form-actions .spacer {
+  flex: 1;
+}
+
+@media (max-width: 960px) {
+  .stock-ui .stock-grid-3,
+  .stock-ui .stock-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-ui .stock-table {
+    min-width: 860px;
+  }
+}
+`;
+
 const getTodayString = () => {
   const today = new Date();
   const year = today.getFullYear();
   const month = `${today.getMonth() + 1}`.padStart(2, "0");
   const day = `${today.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const generateDraftCode = (prefix) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, "0");
+  const day = `${now.getDate()}`.padStart(2, "0");
+  const hours = `${now.getHours()}`.padStart(2, "0");
+  const minutes = `${now.getMinutes()}`.padStart(2, "0");
+  const seconds = `${now.getSeconds()}`.padStart(2, "0");
+
+  return `${prefix}${year}${month}${day}-${hours}${minutes}${seconds}`;
 };
 
 const formatDateTimeVN = (value) => {
@@ -51,8 +359,11 @@ const normalizeIntegerInput = (value, min = 0) => {
   return String(Math.max(parsed, min));
 };
 
-const createFormTemplate = () => ({
-  code: "",
+const getProductLabel = (product) =>
+  [product?.code, product?.name].filter(Boolean).join(" - ");
+
+const createFormTemplate = (code = "") => ({
+  code,
   warehouse_id: "",
   receipt_date: getTodayString(),
   receiver_full_name: "",
@@ -131,10 +442,157 @@ const buildReceiptPayload = (form) => ({
   })),
 });
 
+function ProductSearchSelect({
+  products,
+  value,
+  onChange,
+  placeholder = "Tìm mã hoặc tên sản phẩm",
+}) {
+  const wrapperRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [keyword, setKeyword] = useState("");
+
+  useEffect(() => {
+    if (!value) {
+      setKeyword("");
+      return;
+    }
+
+    const selected = products.find((p) => String(p.id) === String(value));
+    setKeyword(selected ? getProductLabel(selected) : "");
+  }, [value, products]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    const normalized = String(keyword || "")
+      .trim()
+      .toLowerCase();
+
+    if (!normalized) return products.slice(0, 30);
+
+    return products
+      .filter((product) => {
+        const content = [product?.code, product?.name, product?.unit]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return content.includes(normalized);
+      })
+      .slice(0, 30);
+  }, [products, keyword]);
+
+  const handleInputChange = (event) => {
+    const nextValue = event.target.value;
+    setKeyword(nextValue);
+    setOpen(true);
+
+    if (!nextValue.trim()) {
+      onChange("");
+    }
+  };
+
+  const handleSelectProduct = (product) => {
+    onChange(String(product.id));
+    setKeyword(getProductLabel(product));
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    setKeyword("");
+    onChange("");
+    setOpen(false);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && open && filteredProducts.length) {
+      event.preventDefault();
+      handleSelectProduct(filteredProducts[0]);
+    }
+
+    if (event.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="product-search" ref={wrapperRef}>
+      <div className="product-search-box">
+        <span className="product-search-leading">
+          <Search size={16} />
+        </span>
+
+        <input
+          className="stock-search-input"
+          value={keyword}
+          onChange={handleInputChange}
+          onFocus={() => setOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+        />
+
+        <span className="product-search-trailing">
+          {keyword ? (
+            <button
+              type="button"
+              className="product-search-clear"
+              onClick={handleClear}
+              title="Xóa lựa chọn"
+            >
+              <X size={16} />
+            </button>
+          ) : (
+            <ChevronDown size={16} />
+          )}
+        </span>
+      </div>
+
+      {open ? (
+        <div className="product-search-dropdown">
+          {filteredProducts.length ? (
+            filteredProducts.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                className={`product-search-option ${
+                  String(value) === String(product.id) ? "active" : ""
+                }`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => handleSelectProduct(product)}
+              >
+                <span className="product-option-title">
+                  {product.name || "Không tên sản phẩm"}
+                </span>
+                <span className="product-option-meta">
+                  {product.code || "Không có mã"} • ĐVT: {product.unit || "-"}
+                </span>
+              </button>
+            ))
+          ) : (
+            <div className="product-search-empty">
+              Không tìm thấy sản phẩm phù hợp
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function StockReceiptsPage() {
   const { filters, data, loading, error, fetchData } = usePaginatedResource(
     stockReceiptService,
-    { warehouse_id: "", from_date: "", to_date: "" }
+    { warehouse_id: "", from_date: "", to_date: "" },
   );
 
   const [warehouses, setWarehouses] = useState([]);
@@ -149,6 +607,7 @@ export default function StockReceiptsPage() {
   const [reopenDetailId, setReopenDetailId] = useState(null);
   const [form, setForm] = useState(createFormTemplate());
   const [submitError, setSubmitError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     warehouseService
@@ -162,9 +621,9 @@ export default function StockReceiptsPage() {
       .catch(() => {});
   }, []);
 
-  const resetForm = () => {
+  const resetForm = (code = "") => {
     setEditingId(null);
-    setForm(createFormTemplate());
+    setForm(createFormTemplate(code));
     setSubmitError("");
   };
 
@@ -196,7 +655,7 @@ export default function StockReceiptsPage() {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, idx) =>
-        idx === index ? { ...item, [field]: value } : item
+        idx === index ? { ...item, [field]: value } : item,
       ),
     }));
 
@@ -217,7 +676,7 @@ export default function StockReceiptsPage() {
 
   const openCreateForm = () => {
     setReopenDetailId(null);
-    resetForm();
+    resetForm(generateDraftCode("PNK-"));
     setOpenForm(true);
   };
 
@@ -320,6 +779,20 @@ export default function StockReceiptsPage() {
     }
   };
 
+  const handleExportWord = async () => {
+    if (!detail) return;
+
+    try {
+      setExporting(true);
+      setSubmitError("");
+      await exportStockReceiptToWord(detail);
+    } catch (err) {
+      setSubmitError(getErrorMessage(err) || "Không thể xuất file Word");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const list = data?.data || [];
   const isEditing = Boolean(editingId);
 
@@ -330,11 +803,13 @@ export default function StockReceiptsPage() {
         const unitCost = parseInt(item.unit_cost || 0, 10) || 0;
         return sum + quantity * unitCost;
       }, 0),
-    [form.items]
+    [form.items],
   );
 
   return (
     <>
+      <style>{modalUiCss}</style>
+
       <SectionCard
         title="Nhập kho"
         action={
@@ -469,206 +944,234 @@ export default function StockReceiptsPage() {
         open={openForm}
         title={isEditing ? "Cập nhật phiếu nhập kho" : "Lập phiếu nhập kho"}
         onClose={closeForm}
-        width={1100}
+        width={1180}
       >
-        <form className="grid" onSubmit={submit}>
-          {submitError ? <div className="alert error">{submitError}</div> : null}
+        <div className="stock-ui">
+          <form className="grid stock-form" onSubmit={submit}>
+            {submitError ? (
+              <div className="alert error">{submitError}</div>
+            ) : null}
 
-          <div className="grid cols-3">
-            <div className="field">
-              <label>Mã phiếu</label>
-              <input
-                value={form.code}
-                readOnly
-                placeholder="Hệ thống tự sinh sau khi lưu"
-              />
+            <div className="stock-card">
+              <h3 className="stock-card-title">Thông tin phiếu nhập</h3>
+
+              <div className="stock-grid-3">
+                <div className="stock-field">
+                  <label className="stock-label">Mã phiếu</label>
+                  <input
+                    className="stock-control"
+                    value={form.code}
+                    readOnly
+                    placeholder="Mã phiếu tự động"
+                  />
+                </div>
+
+                <div className="stock-field">
+                  <label className="stock-label">Kho</label>
+                  <select
+                    className="stock-control"
+                    value={form.warehouse_id}
+                    onChange={(e) =>
+                      setForm({ ...form, warehouse_id: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">Chọn kho</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="stock-field">
+                  <label className="stock-label">Ngày nhập</label>
+                  <input
+                    className="stock-control"
+                    type="date"
+                    value={form.receipt_date || getTodayString()}
+                    onChange={(e) =>
+                      setForm({ ...form, receipt_date: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="stock-grid-2" style={{ marginTop: 14 }}>
+                <div className="stock-field">
+                  <label className="stock-label">Người nhận</label>
+                  <input
+                    className="stock-control"
+                    value={form.receiver_full_name}
+                    onChange={(e) =>
+                      setForm({ ...form, receiver_full_name: e.target.value })
+                    }
+                    placeholder="Nhập họ tên người nhận"
+                    required
+                  />
+                </div>
+
+                <div className="stock-field">
+                  <label className="stock-label">Người giao</label>
+                  <input
+                    className="stock-control"
+                    value={form.delivery_full_name}
+                    onChange={(e) =>
+                      setForm({ ...form, delivery_full_name: e.target.value })
+                    }
+                    placeholder="Nhập họ tên người giao"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="stock-field" style={{ marginTop: 14 }}>
+                <label className="stock-label">Ghi chú</label>
+                <textarea
+                  className="stock-textarea"
+                  value={form.note}
+                  onChange={(e) => setForm({ ...form, note: e.target.value })}
+                  placeholder="Nhập ghi chú phiếu nhập"
+                />
+              </div>
             </div>
 
-            <div className="field">
-              <label>Kho</label>
-              <select
-                value={form.warehouse_id}
-                onChange={(e) =>
-                  setForm({ ...form, warehouse_id: e.target.value })
-                }
-                required
-              >
-                <option value="">Chọn kho</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="stock-card">
+              <h3 className="stock-card-title">Danh sách sản phẩm nhập</h3>
+              <div className="stock-section-note">
+                Có thể gõ mã sản phẩm, tên sản phẩm hoặc đơn vị tính để tìm
+                nhanh.
+              </div>
 
-            <div className="field">
-              <label>Ngày nhập</label>
-              <input
-                type="date"
-                value={form.receipt_date || getTodayString()}
-                onChange={(e) =>
-                  setForm({ ...form, receipt_date: e.target.value })
-                }
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid cols-2">
-            <div className="field">
-              <label>Người nhận</label>
-              <input
-                value={form.receiver_full_name}
-                onChange={(e) =>
-                  setForm({ ...form, receiver_full_name: e.target.value })
-                }
-                placeholder="Nhập họ tên người nhận"
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label>Người giao</label>
-              <input
-                value={form.delivery_full_name}
-                onChange={(e) =>
-                  setForm({ ...form, delivery_full_name: e.target.value })
-                }
-                placeholder="Nhập họ tên người giao"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label>Ghi chú</label>
-            <textarea
-              value={form.note}
-              onChange={(e) => setForm({ ...form, note: e.target.value })}
-              placeholder="Nhập ghi chú phiếu nhập"
-            />
-          </div>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sản phẩm</th>
-                  <th>Số lượng</th>
-                  <th>Đơn giá nhập</th>
-                  <th>Thành tiền</th>
-                  <th style={{ width: 120 }}></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {form.items.map((item, index) => {
-                  const quantity = parseInt(item.quantity || 0, 10) || 0;
-                  const unitCost = parseInt(item.unit_cost || 0, 10) || 0;
-                  const lineTotal = quantity * unitCost;
-
-                  return (
-                    <tr key={index}>
-                      <td>
-                        <select
-                          value={item.product_id}
-                          onChange={(e) =>
-                            changeItem(index, "product_id", e.target.value)
-                          }
-                          required
-                        >
-                          <option value="">Chọn sản phẩm</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.code} - {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-
-                      <td>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            changeItem(
-                              index,
-                              "quantity",
-                              normalizeIntegerInput(e.target.value, 1)
-                            )
-                          }
-                          required
-                        />
-                      </td>
-
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={item.unit_cost}
-                          onChange={(e) =>
-                            changeItem(
-                              index,
-                              "unit_cost",
-                              normalizeIntegerInput(e.target.value, 0)
-                            )
-                          }
-                          required
-                        />
-                      </td>
-
-                      <td>
-                        <input value={formatNumber(lineTotal, 0)} readOnly />
-                      </td>
-
-                      <td>
-                        <button
-                          type="button"
-                          className="danger-btn"
-                          onClick={() => removeFormItem(index)}
-                          disabled={form.items.length === 1}
-                        >
-                          Xóa dòng
-                        </button>
-                      </td>
+              <div className="table-wrap stock-items-wrap">
+                <table className="stock-table">
+                  <thead>
+                    <tr>
+                      <th>Sản phẩm</th>
+                      <th style={{ width: 160 }}>Số lượng</th>
+                      <th style={{ width: 180 }}>Đơn giá nhập</th>
+                      <th style={{ width: 180 }}>Thành tiền</th>
+                      <th style={{ width: 130 }}></th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
 
-          <div className="summary-card" style={{ marginTop: 8 }}>
-            <div className="muted">Tổng tiền tạm tính</div>
-            <strong>{formatNumber(formTotalAmount, 0)}</strong>
-          </div>
+                  <tbody>
+                    {form.items.map((item, index) => {
+                      const quantity = parseInt(item.quantity || 0, 10) || 0;
+                      const unitCost = parseInt(item.unit_cost || 0, 10) || 0;
+                      const lineTotal = quantity * unitCost;
 
-          <div className="actions">
-            <button type="button" className="ghost-btn" onClick={addItem}>
-              Thêm dòng
-            </button>
+                      return (
+                        <tr key={index}>
+                          <td>
+                            <ProductSearchSelect
+                              products={products}
+                              value={item.product_id}
+                              onChange={(nextValue) =>
+                                changeItem(index, "product_id", nextValue)
+                              }
+                            />
+                          </td>
 
-            <div style={{ flex: 1 }} />
+                          <td>
+                            <input
+                              className="stock-control"
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                changeItem(
+                                  index,
+                                  "quantity",
+                                  normalizeIntegerInput(e.target.value, 1),
+                                )
+                              }
+                              required
+                            />
+                          </td>
 
-            <button type="button" className="ghost-btn" onClick={closeForm}>
-              Hủy
-            </button>
+                          <td>
+                            <input
+                              className="stock-control"
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={item.unit_cost}
+                              onChange={(e) =>
+                                changeItem(
+                                  index,
+                                  "unit_cost",
+                                  normalizeIntegerInput(e.target.value, 0),
+                                )
+                              }
+                              required
+                            />
+                          </td>
 
-            <button className="primary-btn" type="submit" disabled={submitting}>
-              {submitting
-                ? isEditing
-                  ? "Đang cập nhật..."
-                  : "Đang lưu..."
-                : isEditing
-                ? "Cập nhật phiếu nhập"
-                : "Lưu phiếu nhập"}
-            </button>
-          </div>
-        </form>
+                          <td>
+                            <input
+                              className="stock-control stock-line-readonly"
+                              value={formatNumber(lineTotal, 0)}
+                              readOnly
+                            />
+                          </td>
+
+                          <td>
+                            <button
+                              type="button"
+                              className="danger-btn"
+                              onClick={() => removeFormItem(index)}
+                              disabled={form.items.length === 1}
+                            >
+                              Xóa
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="stock-summary-box">
+              <div>
+                <div className="stock-summary-label">Tổng tiền tạm tính</div>
+                <div className="stock-summary-value">
+                  {formatNumber(formTotalAmount, 0)}
+                </div>
+              </div>
+
+              <button type="button" className="ghost-btn" onClick={addItem}>
+                Thêm dòng
+              </button>
+            </div>
+
+            <div className="stock-form-actions">
+              <div className="spacer" />
+              <button type="button" className="ghost-btn" onClick={closeForm}>
+                Hủy
+              </button>
+
+              <button
+                className="primary-btn"
+                type="submit"
+                disabled={submitting}
+              >
+                {submitting
+                  ? isEditing
+                    ? "Đang cập nhật..."
+                    : "Đang lưu..."
+                  : isEditing
+                    ? "Cập nhật phiếu nhập"
+                    : "Lưu phiếu nhập"}
+              </button>
+            </div>
+          </form>
+        </div>
       </Modal>
 
       <Modal
@@ -688,9 +1191,10 @@ export default function StockReceiptsPage() {
               <button
                 type="button"
                 className="primary-btn"
-                onClick={() => exportStockReceiptToWord(detail)}
+                onClick={handleExportWord}
+                disabled={exporting}
               >
-                Xuất Word
+                {exporting ? "Đang xuất..." : "Xuất Word"}
               </button>
 
               <button
