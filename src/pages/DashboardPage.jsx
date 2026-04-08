@@ -17,26 +17,26 @@ import {
 } from "../api/services";
 
 const featureCards = [
-  {
-    title: "Quản lý kho",
-    desc: "Thêm/sửa/xóa kho, tìm theo địa chỉ.",
-    to: "/warehouses",
-  },
+  // {
+  //   title: "Quản lý kho",
+  //   desc: "Thêm/sửa/xóa kho, tìm theo địa chỉ.",
+  //   to: "/warehouses",
+  // },
   {
     title: "Quản lý hàng hóa",
     desc: "Mã hàng, tên hàng, đơn vị tính, nhóm hàng, tồn kho từng kho.",
     to: "/products",
   },
-  {
-    title: "Nhập kho",
-    desc: "Lập phiếu nhập, cập nhật tồn, lưu lịch sử nhập hàng.",
-    to: "/stock-receipts",
-  },
-  {
-    title: "Xuất kho",
-    desc: "Kiểm tra tồn trước khi xuất, tự động trừ tồn.",
-    to: "/stock-issues",
-  },
+  // {
+  //   title: "Nhập kho",
+  //   desc: "Lập phiếu nhập, cập nhật tồn, lưu lịch sử nhập hàng.",
+  //   to: "/stock-receipts",
+  // },
+  // {
+  //   title: "Xuất kho",
+  //   desc: "Kiểm tra tồn trước khi xuất, tự động trừ tồn.",
+  //   to: "/stock-issues",
+  // },
   // {
   //   title: "Điều chuyển",
   //   desc: "Điều chuyển kho A sang kho B, cập nhật hai đầu kho.",
@@ -424,7 +424,7 @@ function WarehouseRatioCard({ rows }) {
   };
 
   const renderLabel = ({ percent }) =>
-    percent >= 0.08 ? `${(percent * 100).toFixed(0)}%` : "";
+    percent >= 0.08 ? `${(percent).toFixed(0)}%` : "";
 
   return (
     <div style={cardStyle}>

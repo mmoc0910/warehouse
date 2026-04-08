@@ -1,6 +1,8 @@
 
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import dayjs from "dayjs";
 import usePaginatedResource from "../hooks/usePaginatedResource";
 import {
   productService,
@@ -14,7 +16,6 @@ import Pagination from "../components/Pagination";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EmptyState from "../components/EmptyState";
 import { exportStockReceiptToWord } from "../utils/exportStockReceiptToWord";
-import dayjs from "dayjs";
 
 const itemTemplate = { product_id: "", quantity: "", unit_cost: "" };
 
@@ -24,17 +25,6 @@ const getTodayString = () => {
   const month = `${today.getMonth() + 1}`.padStart(2, "0");
   const day = `${today.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
-};
-
-const generateReceiptCode = () => {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = `${now.getMonth() + 1}`.padStart(2, "0");
-  const dd = `${now.getDate()}`.padStart(2, "0");
-  const hh = `${now.getHours()}`.padStart(2, "0");
-  const mi = `${now.getMinutes()}`.padStart(2, "0");
-  const ss = `${now.getSeconds()}`.padStart(2, "0");
-  return `PN-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
 };
 
 const formatDateTimeVN = (value) => {
@@ -62,9 +52,11 @@ const normalizeIntegerInput = (value, min = 0) => {
 };
 
 const createFormTemplate = () => ({
-  code: generateReceiptCode(),
+  code: "",
   warehouse_id: "",
   receipt_date: getTodayString(),
+  receiver_full_name: "",
+  delivery_full_name: "",
   note: "",
   items: [{ ...itemTemplate }],
 });
@@ -75,6 +67,8 @@ const mapReceiptToForm = (receipt) => ({
   receipt_date: receipt?.receipt_date
     ? String(receipt.receipt_date).slice(0, 10)
     : getTodayString(),
+  receiver_full_name: receipt?.receiver_full_name || "",
+  delivery_full_name: receipt?.delivery_full_name || "",
   note: receipt?.note || "",
   items:
     receipt?.items?.length > 0
@@ -90,6 +84,51 @@ const mapReceiptToForm = (receipt) => ({
               : String(parseInt(item.unit_cost, 10)),
         }))
       : [{ ...itemTemplate }],
+});
+
+const validateReceiptForm = (form) => {
+  if (!form.warehouse_id) return "Vui lòng chọn kho.";
+  if (!form.receipt_date) return "Vui lòng chọn ngày nhập.";
+  if (!String(form.receiver_full_name || "").trim()) {
+    return "Vui lòng nhập họ tên người nhận.";
+  }
+  if (!String(form.delivery_full_name || "").trim()) {
+    return "Vui lòng nhập họ tên người giao.";
+  }
+  if (!Array.isArray(form.items) || form.items.length === 0) {
+    return "Phiếu nhập phải có ít nhất 1 sản phẩm.";
+  }
+
+  for (let i = 0; i < form.items.length; i += 1) {
+    const item = form.items[i];
+
+    if (!item.product_id) {
+      return `Dòng ${i + 1}: vui lòng chọn sản phẩm.`;
+    }
+
+    if (!item.quantity || Number(item.quantity) <= 0) {
+      return `Dòng ${i + 1}: số lượng phải lớn hơn 0.`;
+    }
+
+    if (item.unit_cost === "" || Number(item.unit_cost) < 0) {
+      return `Dòng ${i + 1}: vui lòng nhập đơn giá nhập hợp lệ.`;
+    }
+  }
+
+  return "";
+};
+
+const buildReceiptPayload = (form) => ({
+  warehouse_id: parseInt(form.warehouse_id, 10),
+  receipt_date: form.receipt_date || getTodayString(),
+  receiver_full_name: String(form.receiver_full_name || "").trim(),
+  delivery_full_name: String(form.delivery_full_name || "").trim(),
+  note: String(form.note || "").trim() || null,
+  items: form.items.map((item) => ({
+    product_id: parseInt(item.product_id, 10),
+    quantity: parseInt(item.quantity, 10),
+    unit_cost: parseInt(item.unit_cost, 10),
+  })),
 });
 
 export default function StockReceiptsPage() {
@@ -245,31 +284,24 @@ export default function StockReceiptsPage() {
   const submit = async (e) => {
     e.preventDefault();
     setSubmitError("");
+
+    const validationMessage = validateReceiptForm(form);
+    if (validationMessage) {
+      setSubmitError(validationMessage);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const payload = {
-        warehouse_id: parseInt(form.warehouse_id, 10),
-        receipt_date: form.receipt_date || getTodayString(),
-        note: form.note || null,
-        items: form.items.map((item) => ({
-          product_id: parseInt(item.product_id, 10),
-          quantity: parseInt(item.quantity, 10),
-          unit_cost:
-            item.unit_cost === "" ? null : parseInt(item.unit_cost, 10),
-        })),
-      };
-
+      const payload = buildReceiptPayload(form);
       const currentEditingId = editingId;
       const shouldReopenDetail = Boolean(currentEditingId && reopenDetailId);
 
       if (currentEditingId) {
         await stockReceiptService.update(currentEditingId, payload);
       } else {
-        await stockReceiptService.create({
-          ...payload,
-          code: form.code || generateReceiptCode(),
-        });
+        await stockReceiptService.create(payload);
       }
 
       closeForm();
@@ -290,6 +322,16 @@ export default function StockReceiptsPage() {
 
   const list = data?.data || [];
   const isEditing = Boolean(editingId);
+
+  const formTotalAmount = useMemo(
+    () =>
+      form.items.reduce((sum, item) => {
+        const quantity = parseInt(item.quantity || 0, 10) || 0;
+        const unitCost = parseInt(item.unit_cost || 0, 10) || 0;
+        return sum + quantity * unitCost;
+      }, 0),
+    [form.items]
+  );
 
   return (
     <>
@@ -353,6 +395,8 @@ export default function StockReceiptsPage() {
                 <th>Mã phiếu</th>
                 <th>Kho</th>
                 <th>Ngày nhập</th>
+                <th>Người nhận</th>
+                <th>Người giao</th>
                 <th>SL sản phẩm</th>
                 <th>Tổng tiền</th>
                 <th>Người tạo</th>
@@ -372,7 +416,8 @@ export default function StockReceiptsPage() {
                   <td>{item.code}</td>
                   <td>{item.warehouse?.name || "-"}</td>
                   <td>{dayjs(item.receipt_date).format("DD/MM/YYYY")}</td>
-                  {/* <td>{formatDateTimeVN(item.receipt_date)}</td> */}
+                  <td>{item.receiver_full_name || "-"}</td>
+                  <td>{item.delivery_full_name || "-"}</td>
                   <td>{item.items_count}</td>
                   <td>{formatNumber(item.total_amount, 0)}</td>
                   <td>{item.creator?.name || "-"}</td>
@@ -424,7 +469,7 @@ export default function StockReceiptsPage() {
         open={openForm}
         title={isEditing ? "Cập nhật phiếu nhập kho" : "Lập phiếu nhập kho"}
         onClose={closeForm}
-        width={960}
+        width={1100}
       >
         <form className="grid" onSubmit={submit}>
           {submitError ? <div className="alert error">{submitError}</div> : null}
@@ -434,9 +479,8 @@ export default function StockReceiptsPage() {
               <label>Mã phiếu</label>
               <input
                 value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="Tự động sinh mã phiếu"
-                disabled={isEditing}
+                readOnly
+                placeholder="Hệ thống tự sinh sau khi lưu"
               />
             </div>
 
@@ -471,11 +515,38 @@ export default function StockReceiptsPage() {
             </div>
           </div>
 
+          <div className="grid cols-2">
+            <div className="field">
+              <label>Người nhận</label>
+              <input
+                value={form.receiver_full_name}
+                onChange={(e) =>
+                  setForm({ ...form, receiver_full_name: e.target.value })
+                }
+                placeholder="Nhập họ tên người nhận"
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label>Người giao</label>
+              <input
+                value={form.delivery_full_name}
+                onChange={(e) =>
+                  setForm({ ...form, delivery_full_name: e.target.value })
+                }
+                placeholder="Nhập họ tên người giao"
+                required
+              />
+            </div>
+          </div>
+
           <div className="field">
             <label>Ghi chú</label>
             <textarea
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
+              placeholder="Nhập ghi chú phiếu nhập"
             />
           </div>
 
@@ -486,77 +557,94 @@ export default function StockReceiptsPage() {
                   <th>Sản phẩm</th>
                   <th>Số lượng</th>
                   <th>Đơn giá nhập</th>
-                  <th></th>
+                  <th>Thành tiền</th>
+                  <th style={{ width: 120 }}></th>
                 </tr>
               </thead>
 
               <tbody>
-                {form.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>
-                      <select
-                        value={item.product_id}
-                        onChange={(e) =>
-                          changeItem(index, "product_id", e.target.value)
-                        }
-                        required
-                      >
-                        <option value="">Chọn sản phẩm</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.code} - {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+                {form.items.map((item, index) => {
+                  const quantity = parseInt(item.quantity || 0, 10) || 0;
+                  const unitCost = parseInt(item.unit_cost || 0, 10) || 0;
+                  const lineTotal = quantity * unitCost;
 
-                    <td>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          changeItem(
-                            index,
-                            "quantity",
-                            normalizeIntegerInput(e.target.value, 1)
-                          )
-                        }
-                        required
-                      />
-                    </td>
+                  return (
+                    <tr key={index}>
+                      <td>
+                        <select
+                          value={item.product_id}
+                          onChange={(e) =>
+                            changeItem(index, "product_id", e.target.value)
+                          }
+                          required
+                        >
+                          <option value="">Chọn sản phẩm</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.code} - {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={item.unit_cost}
-                        onChange={(e) =>
-                          changeItem(
-                            index,
-                            "unit_cost",
-                            normalizeIntegerInput(e.target.value, 0)
-                          )
-                        }
-                      />
-                    </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            changeItem(
+                              index,
+                              "quantity",
+                              normalizeIntegerInput(e.target.value, 1)
+                            )
+                          }
+                          required
+                        />
+                      </td>
 
-                    <td>
-                      <button
-                        type="button"
-                        className="danger-btn"
-                        onClick={() => removeFormItem(index)}
-                        disabled={form.items.length === 1}
-                      >
-                        Xóa dòng
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.unit_cost}
+                          onChange={(e) =>
+                            changeItem(
+                              index,
+                              "unit_cost",
+                              normalizeIntegerInput(e.target.value, 0)
+                            )
+                          }
+                          required
+                        />
+                      </td>
+
+                      <td>
+                        <input value={formatNumber(lineTotal, 0)} readOnly />
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="danger-btn"
+                          onClick={() => removeFormItem(index)}
+                          disabled={form.items.length === 1}
+                        >
+                          Xóa dòng
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+
+          <div className="summary-card" style={{ marginTop: 8 }}>
+            <div className="muted">Tổng tiền tạm tính</div>
+            <strong>{formatNumber(formTotalAmount, 0)}</strong>
           </div>
 
           <div className="actions">
@@ -590,7 +678,7 @@ export default function StockReceiptsPage() {
           setDetail(null);
           setDetailLoading(false);
         }}
-        width={980}
+        width={1100}
       >
         {detailLoading && !detail ? (
           <div className="muted">Đang tải chi tiết phiếu nhập...</div>
@@ -645,6 +733,23 @@ export default function StockReceiptsPage() {
                 <div className="muted">Tổng tiền</div>
                 <strong>{formatNumber(detail.total_amount, 0)}</strong>
               </div>
+            </div>
+
+            <div className="grid cols-2">
+              <div className="summary-card">
+                <div className="muted">Người nhận</div>
+                <strong>{detail.receiver_full_name || "-"}</strong>
+              </div>
+
+              <div className="summary-card">
+                <div className="muted">Người giao</div>
+                <strong>{detail.delivery_full_name || "-"}</strong>
+              </div>
+            </div>
+
+            <div className="summary-card">
+              <div className="muted">Ghi chú</div>
+              <strong>{detail.note || "-"}</strong>
             </div>
 
             <div className="table-wrap">

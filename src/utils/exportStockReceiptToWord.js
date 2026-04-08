@@ -143,19 +143,6 @@ function buildMainTable(detail) {
           }),
         ],
       }),
-      //   new TableRow({
-      //     tableHeader: true,
-      //     children: [
-      //       cell("A", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("B", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("C", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("D", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("1", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("2", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("3", { bold: true, alignment: AlignmentType.CENTER }),
-      //       cell("4", { bold: true, alignment: AlignmentType.CENTER }),
-      //     ],
-      //   }),
       ...items.map((item, index) => {
         const qty = Number(item.quantity || 0);
         const unitCost = Number(item.unit_cost || 0);
@@ -164,11 +151,11 @@ function buildMainTable(detail) {
         return new TableRow({
           children: [
             cell(index + 1, { alignment: AlignmentType.CENTER }),
-            cell(`${item.product?.name || ""}`),
+            cell(item.product?.name || ""),
             cell(item.product?.code || "", { alignment: AlignmentType.CENTER }),
             cell(item.product?.unit || "", { alignment: AlignmentType.CENTER }),
             cell(formatQty(qty), { alignment: AlignmentType.CENTER }),
-            cell(formatQty(qty), { alignment: AlignmentType.CENTER }), // thực xuất / thực nhập
+            cell(formatQty(qty), { alignment: AlignmentType.CENTER }),
             cell(formatMoney(unitCost), { alignment: AlignmentType.RIGHT }),
             cell(formatMoney(lineTotal), { alignment: AlignmentType.RIGHT }),
           ],
@@ -184,6 +171,47 @@ function buildMainTable(detail) {
           cell(formatMoney(detail?.total_amount || 0), {
             bold: true,
             alignment: AlignmentType.RIGHT,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+function buildSignatureCell(title) {
+  return new TableCell({
+    borders: noBorder,
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [
+          new TextRun({
+            text: title,
+            bold: true,
+            size: 24,
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 900 },
+        children: [
+          new TextRun({
+            text: "(Ký, họ tên)",
+            italics: true,
+            size: 22,
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 0 },
+        children: [
+          new TextRun({
+            text: "",
+            bold: true,
+            size: 22,
           }),
         ],
       }),
@@ -245,10 +273,6 @@ export async function exportStockReceiptToWord(detail) {
                     borders: noBorder,
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
-                      // new Paragraph({
-                      //   alignment: AlignmentType.CENTER,
-                      //   children: [new TextRun({ text: "Mẫu số 02 - VT", bold: true, size: 24 })],
-                      // }),
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
                         children: [
@@ -348,8 +372,14 @@ export async function exportStockReceiptToWord(detail) {
 
           new Paragraph({ text: "" }),
 
-          buildInfoLine("- Họ và tên người giao hàng:", ""),
-          // buildInfoLine("- Họ và tên người giao hàng:", detail?.creator?.name || ""),
+          buildInfoLine(
+            "- Họ và tên người giao hàng:",
+            detail?.delivery_full_name || "",
+          ),
+          buildInfoLine(
+            "- Họ và tên người nhận hàng:",
+            detail?.receiver_full_name || "",
+          ),
           buildInfoLine("- Nội dung:", detail?.note || ""),
           buildInfoLine("- Nhập tại kho:", detail?.warehouse?.name || ""),
           buildInfoLine("- Địa điểm:", detail?.warehouse?.address || ""),
@@ -366,81 +396,10 @@ export async function exportStockReceiptToWord(detail) {
             rows: [
               new TableRow({
                 children: [
-                  new TableCell({
-                    borders: noBorder,
-                    children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new TextRun({
-                            text: "Người lập phiếu",
-                            bold: true,
-                            size: 24,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new TextRun({
-                            text: "(Ký, họ tên)",
-                            italics: true,
-                            size: 22,
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                  new TableCell({
-                    borders: noBorder,
-                    children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new TextRun({
-                            text: "Người giao hàng",
-                            bold: true,
-                            size: 24,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new TextRun({
-                            text: "(Ký, họ tên)",
-                            italics: true,
-                            size: 22,
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                  new TableCell({
-                    borders: noBorder,
-                    children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new TextRun({
-                            text: "Thủ kho",
-                            bold: true,
-                            size: 24,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new TextRun({
-                            text: "(Ký, họ tên)",
-                            italics: true,
-                            size: 22,
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
+                  buildSignatureCell("Người lập phiếu"),
+                  buildSignatureCell("Người giao hàng"),
+                  buildSignatureCell("Người nhận hàng"),
+                  buildSignatureCell("Thủ kho"),
                 ],
               }),
             ],

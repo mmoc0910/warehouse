@@ -136,11 +136,6 @@ function buildHeaderTable() {
             borders: NO_BORDER,
             width: { size: 50, type: WidthType.PERCENTAGE },
             children: [
-              // lineParagraph("Mẫu số 02 - VT", {
-              //   bold: true,
-              //   size: 24,
-              //   alignment: AlignmentType.CENTER,
-              // }),
               lineParagraph("(Ban hành theo Thông tư số 200/2014/TT-BTC", {
                 italics: true,
                 size: 22,
@@ -267,19 +262,6 @@ function buildItemsTable(detail) {
         }),
       ],
     }),
-    // new TableRow({
-    //   tableHeader: true,
-    //   children: [
-    //     cellText("A", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("B", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("C", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("D", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("1", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("2", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("3", { bold: true, alignment: AlignmentType.CENTER }),
-    //     cellText("4", { bold: true, alignment: AlignmentType.CENTER }),
-    //   ],
-    // }),
   ];
 
   items.forEach((item, index) => {
@@ -329,136 +311,61 @@ function buildItemsTable(detail) {
   });
 }
 
-function buildSignatureTable(detail) {
+function buildSignatureCell(title) {
+  return new TableCell({
+    borders: NO_BORDER,
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        border: undefined,
+        children: [
+          new TextRun({
+            text: title,
+            bold: true,
+            size: 24,
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 900 },
+        border: undefined,
+        children: [
+          new TextRun({
+            text: "(Ký, họ tên)",
+            italics: true,
+            size: 22,
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 0 },
+        border: undefined,
+        children: [
+          new TextRun({
+            text: "",
+            bold: true,
+            size: 22,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+function buildSignatureTable() {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: NO_BORDER,
     rows: [
       new TableRow({
         children: [
-          new TableCell({
-            borders: NO_BORDER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 80 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "Người lập phiếu",
-                    bold: true,
-                    size: 24,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 900 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "(Ký, họ tên)",
-                    italics: true,
-                    size: 22,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "",
-                    bold: true,
-                    size: 22,
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            borders: NO_BORDER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 80 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "Người nhận hàng",
-                    bold: true,
-                    size: 24,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 900 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "(Ký, họ tên)",
-                    italics: true,
-                    size: 22,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "",
-                    bold: true,
-                    size: 22,
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            borders: NO_BORDER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 80 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "Thủ kho",
-                    bold: true,
-                    size: 24,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 900 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "(Ký, họ tên)",
-                    italics: true,
-                    size: 22,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0 },
-                border: undefined,
-                children: [
-                  new TextRun({
-                    text: "",
-                    bold: true,
-                    size: 22,
-                  }),
-                ],
-              }),
-            ],
-          }),
+          buildSignatureCell("Người lập phiếu"),
+          buildSignatureCell("Người giao hàng"),
+          buildSignatureCell("Người nhận hàng"),
+          buildSignatureCell("Thủ kho"),
         ],
       }),
     ],
@@ -521,7 +428,14 @@ export async function exportStockIssueToWord(detail) {
             children: [],
           }),
 
-          infoLine("- Họ và tên người nhận hàng:", ""),
+          infoLine(
+            "- Họ và tên người giao hàng:",
+            detail?.delivery_full_name || "",
+          ),
+          infoLine(
+            "- Họ và tên người nhận hàng:",
+            detail?.receiver_full_name || "",
+          ),
           infoLine("- Lý do xuất kho:", detail?.note || ""),
           infoLine("- Xuất tại kho (ngăn lô):", detail?.warehouse?.name || ""),
           infoLine("- Địa điểm:", detail?.warehouse?.address || ""),
@@ -540,7 +454,7 @@ export async function exportStockIssueToWord(detail) {
             children: [],
           }),
 
-          buildSignatureTable(detail),
+          buildSignatureTable(),
         ],
       },
     ],

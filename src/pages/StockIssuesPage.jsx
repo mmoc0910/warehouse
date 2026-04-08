@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+
+
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import dayjs from "dayjs";
 import usePaginatedResource from "../hooks/usePaginatedResource";
 import {
   productService,
@@ -13,7 +16,6 @@ import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EmptyState from "../components/EmptyState";
-import dayjs from "dayjs";
 
 const itemTemplate = { product_id: "", quantity: "", unit_price: "" };
 
@@ -23,17 +25,6 @@ const getTodayString = () => {
   const month = `${today.getMonth() + 1}`.padStart(2, "0");
   const day = `${today.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
-};
-
-const generateIssueCode = () => {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = `${now.getMonth() + 1}`.padStart(2, "0");
-  const dd = `${now.getDate()}`.padStart(2, "0");
-  const hh = `${now.getHours()}`.padStart(2, "0");
-  const mi = `${now.getMinutes()}`.padStart(2, "0");
-  const ss = `${now.getSeconds()}`.padStart(2, "0");
-  return `PX-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
 };
 
 const formatDateTimeVN = (value) => {
@@ -61,9 +52,11 @@ const normalizeIntegerInput = (value, min = 0) => {
 };
 
 const createFormTemplate = () => ({
-  code: generateIssueCode(),
+  code: "",
   warehouse_id: "",
   issue_date: getTodayString(),
+  receiver_full_name: "",
+  delivery_full_name: "",
   note: "",
   items: [{ ...itemTemplate }],
 });
@@ -74,6 +67,8 @@ const mapIssueToForm = (issue) => ({
   issue_date: issue?.issue_date
     ? String(issue.issue_date).slice(0, 10)
     : getTodayString(),
+  receiver_full_name: issue?.receiver_full_name || "",
+  delivery_full_name: issue?.delivery_full_name || "",
   note: issue?.note || "",
   items:
     issue?.items?.length > 0
@@ -91,10 +86,55 @@ const mapIssueToForm = (issue) => ({
       : [{ ...itemTemplate }],
 });
 
+const validateIssueForm = (form) => {
+  if (!form.warehouse_id) return "Vui lòng chọn kho.";
+  if (!form.issue_date) return "Vui lòng chọn ngày xuất.";
+  if (!String(form.receiver_full_name || "").trim()) {
+    return "Vui lòng nhập họ tên người nhận.";
+  }
+  if (!String(form.delivery_full_name || "").trim()) {
+    return "Vui lòng nhập họ tên người giao.";
+  }
+  if (!Array.isArray(form.items) || form.items.length === 0) {
+    return "Phiếu xuất phải có ít nhất 1 sản phẩm.";
+  }
+
+  for (let i = 0; i < form.items.length; i += 1) {
+    const item = form.items[i];
+
+    if (!item.product_id) {
+      return `Dòng ${i + 1}: vui lòng chọn sản phẩm.`;
+    }
+
+    if (!item.quantity || Number(item.quantity) <= 0) {
+      return `Dòng ${i + 1}: số lượng phải lớn hơn 0.`;
+    }
+
+    if (item.unit_price === "" || Number(item.unit_price) < 0) {
+      return `Dòng ${i + 1}: vui lòng nhập đơn giá bán hợp lệ.`;
+    }
+  }
+
+  return "";
+};
+
+const buildIssuePayload = (form) => ({
+  warehouse_id: parseInt(form.warehouse_id, 10),
+  issue_date: form.issue_date || getTodayString(),
+  receiver_full_name: String(form.receiver_full_name || "").trim(),
+  delivery_full_name: String(form.delivery_full_name || "").trim(),
+  note: String(form.note || "").trim() || null,
+  items: form.items.map((item) => ({
+    product_id: parseInt(item.product_id, 10),
+    quantity: parseInt(item.quantity, 10),
+    unit_price: parseInt(item.unit_price, 10),
+  })),
+});
+
 export default function StockIssuesPage() {
   const { filters, data, loading, error, fetchData } = usePaginatedResource(
     stockIssueService,
-    { warehouse_id: "", from_date: "", to_date: "" },
+    { warehouse_id: "", from_date: "", to_date: "" }
   );
 
   const [warehouses, setWarehouses] = useState([]);
@@ -157,7 +197,7 @@ export default function StockIssuesPage() {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, idx) =>
-        idx === index ? { ...item, [field]: value } : item,
+        idx === index ? { ...item, [field]: value } : item
       ),
     }));
 
@@ -193,8 +233,7 @@ export default function StockIssuesPage() {
       let issue = issueOrId;
 
       if (!issue || typeof issue !== "object" || !issue.items) {
-        const issueId =
-          typeof issueOrId === "object" ? issueOrId?.id : issueOrId;
+        const issueId = typeof issueOrId === "object" ? issueOrId?.id : issueOrId;
         const res = await stockIssueService.detail(issueId);
         issue = res.data.data;
       }
@@ -245,31 +284,24 @@ export default function StockIssuesPage() {
   const submit = async (e) => {
     e.preventDefault();
     setSubmitError("");
+
+    const validationMessage = validateIssueForm(form);
+    if (validationMessage) {
+      setSubmitError(validationMessage);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const payload = {
-        warehouse_id: parseInt(form.warehouse_id, 10),
-        issue_date: form.issue_date || getTodayString(),
-        note: form.note || null,
-        items: form.items.map((item) => ({
-          product_id: parseInt(item.product_id, 10),
-          quantity: parseInt(item.quantity, 10),
-          unit_price:
-            item.unit_price === "" ? null : parseInt(item.unit_price, 10),
-        })),
-      };
-
+      const payload = buildIssuePayload(form);
       const currentEditingId = editingId;
       const shouldReopenDetail = Boolean(currentEditingId && reopenDetailId);
 
       if (currentEditingId) {
         await stockIssueService.update(currentEditingId, payload);
       } else {
-        await stockIssueService.create({
-          ...payload,
-          code: form.code || generateIssueCode(),
-        });
+        await stockIssueService.create(payload);
       }
 
       closeForm();
@@ -304,6 +336,16 @@ export default function StockIssuesPage() {
 
   const list = data?.data || [];
   const isEditing = Boolean(editingId);
+
+  const formTotalAmount = useMemo(
+    () =>
+      form.items.reduce((sum, item) => {
+        const quantity = parseInt(item.quantity || 0, 10) || 0;
+        const unitPrice = parseInt(item.unit_price || 0, 10) || 0;
+        return sum + quantity * unitPrice;
+      }, 0),
+    [form.items]
+  );
 
   return (
     <>
@@ -367,6 +409,8 @@ export default function StockIssuesPage() {
                 <th>Mã phiếu</th>
                 <th>Kho</th>
                 <th>Ngày xuất</th>
+                <th>Người nhận</th>
+                <th>Người giao</th>
                 <th>SL sản phẩm</th>
                 <th>Tổng tiền</th>
                 <th>Người tạo</th>
@@ -385,8 +429,9 @@ export default function StockIssuesPage() {
                 >
                   <td>{item.code}</td>
                   <td>{item.warehouse?.name || "-"}</td>
-                  {/* <td>{formatDateTimeVN(item.issue_date)}</td> */}
-                   <td>{dayjs(item.issue_date).format("DD/MM/YYYY")}</td>
+                  <td>{dayjs(item.issue_date).format("DD/MM/YYYY")}</td>
+                  <td>{item.receiver_full_name || "-"}</td>
+                  <td>{item.delivery_full_name || "-"}</td>
                   <td>{item.items_count}</td>
                   <td>{formatNumber(item.total_amount, 0)}</td>
                   <td>{item.creator?.name || "-"}</td>
@@ -438,21 +483,18 @@ export default function StockIssuesPage() {
         open={openForm}
         title={isEditing ? "Cập nhật phiếu xuất kho" : "Lập phiếu xuất kho"}
         onClose={closeForm}
-        width={960}
+        width={1100}
       >
         <form className="grid" onSubmit={submit}>
-          {submitError ? (
-            <div className="alert error">{submitError}</div>
-          ) : null}
+          {submitError ? <div className="alert error">{submitError}</div> : null}
 
           <div className="grid cols-3">
             <div className="field">
               <label>Mã phiếu</label>
               <input
                 value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="Tự động sinh mã phiếu"
-                disabled={isEditing}
+                readOnly
+                placeholder="Hệ thống tự sinh sau khi lưu"
               />
             </div>
 
@@ -487,11 +529,38 @@ export default function StockIssuesPage() {
             </div>
           </div>
 
+          <div className="grid cols-2">
+            <div className="field">
+              <label>Người nhận</label>
+              <input
+                value={form.receiver_full_name}
+                onChange={(e) =>
+                  setForm({ ...form, receiver_full_name: e.target.value })
+                }
+                placeholder="Nhập họ tên người nhận"
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label>Người giao</label>
+              <input
+                value={form.delivery_full_name}
+                onChange={(e) =>
+                  setForm({ ...form, delivery_full_name: e.target.value })
+                }
+                placeholder="Nhập họ tên người giao"
+                required
+              />
+            </div>
+          </div>
+
           <div className="field">
             <label>Ghi chú</label>
             <textarea
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
+              placeholder="Nhập ghi chú phiếu xuất"
             />
           </div>
 
@@ -502,77 +571,94 @@ export default function StockIssuesPage() {
                   <th>Sản phẩm</th>
                   <th>Số lượng xuất</th>
                   <th>Đơn giá bán</th>
-                  <th></th>
+                  <th>Thành tiền</th>
+                  <th style={{ width: 120 }}></th>
                 </tr>
               </thead>
 
               <tbody>
-                {form.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>
-                      <select
-                        value={item.product_id}
-                        onChange={(e) =>
-                          changeItem(index, "product_id", e.target.value)
-                        }
-                        required
-                      >
-                        <option value="">Chọn sản phẩm</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.code} - {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+                {form.items.map((item, index) => {
+                  const quantity = parseInt(item.quantity || 0, 10) || 0;
+                  const unitPrice = parseInt(item.unit_price || 0, 10) || 0;
+                  const lineTotal = quantity * unitPrice;
 
-                    <td>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          changeItem(
-                            index,
-                            "quantity",
-                            normalizeIntegerInput(e.target.value, 1),
-                          )
-                        }
-                        required
-                      />
-                    </td>
+                  return (
+                    <tr key={index}>
+                      <td>
+                        <select
+                          value={item.product_id}
+                          onChange={(e) =>
+                            changeItem(index, "product_id", e.target.value)
+                          }
+                          required
+                        >
+                          <option value="">Chọn sản phẩm</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.code} - {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={item.unit_price}
-                        onChange={(e) =>
-                          changeItem(
-                            index,
-                            "unit_price",
-                            normalizeIntegerInput(e.target.value, 0),
-                          )
-                        }
-                      />
-                    </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            changeItem(
+                              index,
+                              "quantity",
+                              normalizeIntegerInput(e.target.value, 1)
+                            )
+                          }
+                          required
+                        />
+                      </td>
 
-                    <td>
-                      <button
-                        type="button"
-                        className="danger-btn"
-                        onClick={() => removeFormItem(index)}
-                        disabled={form.items.length === 1}
-                      >
-                        Xóa dòng
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.unit_price}
+                          onChange={(e) =>
+                            changeItem(
+                              index,
+                              "unit_price",
+                              normalizeIntegerInput(e.target.value, 0)
+                            )
+                          }
+                          required
+                        />
+                      </td>
+
+                      <td>
+                        <input value={formatNumber(lineTotal, 0)} readOnly />
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="danger-btn"
+                          onClick={() => removeFormItem(index)}
+                          disabled={form.items.length === 1}
+                        >
+                          Xóa dòng
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+
+          <div className="summary-card" style={{ marginTop: 8 }}>
+            <div className="muted">Tổng tiền tạm tính</div>
+            <strong>{formatNumber(formTotalAmount, 0)}</strong>
           </div>
 
           <div className="actions">
@@ -592,8 +678,8 @@ export default function StockIssuesPage() {
                   ? "Đang cập nhật..."
                   : "Đang lưu..."
                 : isEditing
-                  ? "Cập nhật phiếu xuất"
-                  : "Lưu phiếu xuất"}
+                ? "Cập nhật phiếu xuất"
+                : "Lưu phiếu xuất"}
             </button>
           </div>
         </form>
@@ -606,7 +692,7 @@ export default function StockIssuesPage() {
           setDetail(null);
           setDetailLoading(false);
         }}
-        width={960}
+        width={1100}
       >
         {detailLoading && !detail ? (
           <div className="muted">Đang tải chi tiết phiếu xuất...</div>
@@ -662,6 +748,23 @@ export default function StockIssuesPage() {
                 <div className="muted">Tổng tiền</div>
                 <strong>{formatNumber(detail.total_amount, 0)}</strong>
               </div>
+            </div>
+
+            <div className="grid cols-2">
+              <div className="summary-card">
+                <div className="muted">Người nhận</div>
+                <strong>{detail.receiver_full_name || "-"}</strong>
+              </div>
+
+              <div className="summary-card">
+                <div className="muted">Người giao</div>
+                <strong>{detail.delivery_full_name || "-"}</strong>
+              </div>
+            </div>
+
+            <div className="summary-card">
+              <div className="muted">Ghi chú</div>
+              <strong>{detail.note || "-"}</strong>
             </div>
 
             <div className="table-wrap">
