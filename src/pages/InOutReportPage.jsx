@@ -902,10 +902,10 @@ export default function InOutReportPage() {
                 <strong>{formatNumber(receiptSummary.totalItems, 0)}</strong>
               </div>
 
-              <div className="summary-card">
+              {/* <div className="summary-card">
                 <div className="muted">Tổng số lượng</div>
                 <strong>{formatNumber(receiptSummary.totalQuantity, 0)}</strong>
-              </div>
+              </div> */}
 
               <div className="summary-card">
                 <div className="muted">Tổng tiền</div>
