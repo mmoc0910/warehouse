@@ -439,9 +439,9 @@ function SearchableSupplierSelect({
   return (
     <div className="report-search-select" ref={wrapperRef}>
       <div className="report-search-select-input-wrap">
-        <span className="report-search-select-leading">
+        {/* <span className="report-search-select-leading">
           <Search size={16} />
-        </span>
+        </span> */}
 
         <input
           className="report-search-select-input"
